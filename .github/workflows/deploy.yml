@@ -1,0 +1,199 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run linting
+        run: npm run lint
+
+      - name: Build application
+        run: npm run build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-files
+          path: |
+            dist/
+            server.js
+            package.json
+            package-lock.json
+            ecosystem.config.cjs
+            uploads/
+
+  deploy:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-files
+
+      - name: Debug secrets
+        run: |
+          echo "SERVER_HOST: ${{ secrets.SERVER_HOST }}"
+          echo "SERVER_USER: ${{ secrets.SERVER_USER }}"
+          echo "SSH_KEY length: $(echo '${{ secrets.SERVER_SSH_KEY }}' | wc -c)"
+
+      - name: Deploy to server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: 22
+          script: |
+            # Остановка приложения
+            pm2 stop workdocs-app || true
+
+            # Создание бэкапа
+            cp -r /var/www/workdocs /var/www/workdocs.backup.$(date +%Y%m%d_%H%M%S) || true
+
+            # Очистка старой версии
+            rm -rf /var/www/workdocs/*
+
+      - name: Upload files to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: 22
+          source: 'dist/,server.js,package.json,package-lock.json,ecosystem.config.cjs,uploads/'
+          target: '/var/www/workdocs/'
+
+      - name: Setup and start application
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: 22
+          script: |
+            cd /var/www/workdocs/
+
+            # Установка зависимостей
+            npm ci --production
+
+            # Настройка переменных окружения
+            echo "NODE_ENV=production" > .env
+            echo "PORT=3001" >> .env
+
+            # Установка PM2 если не установлен
+            npm install -g pm2 || true
+
+            # Проверка что файлы на месте
+            echo "=== Checking files ==="
+            ls -la /var/www/workdocs/
+            ls -la /var/www/workdocs/node_modules/ || echo "node_modules not found"
+
+            # Создание папки для логов
+            echo "=== Creating logs directory ==="
+            mkdir -p /var/www/workdocs/logs
+            chmod 755 /var/www/workdocs/logs
+
+            # Запуск приложения
+            pm2 start ecosystem.config.cjs
+
+            # Ждем запуска
+            sleep 10
+
+            # Проверка статуса
+            pm2 status
+
+            # Если приложение не запустилось, перезапустить
+            if ! pm2 status | grep -q "online"; then
+              echo "Application not running, restarting..."
+              pm2 restart workdocs-app
+              sleep 5
+              pm2 status
+            fi
+
+            # Настройка автозапуска
+            pm2 startup || true
+            pm2 save
+
+            # Проверка статуса
+            pm2 status
+
+      - name: Final verification
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: 22
+          script: |
+            # Финальная проверка статуса
+            echo "=== Final PM2 Status ==="
+            pm2 status
+
+            # Проверка логов без зависания
+            echo "=== Recent logs ==="
+            tail -5 /var/www/workdocs/logs/out.log 2>/dev/null || echo "No logs yet"
+
+            echo "=== Deployment completed successfully ==="
+            echo "Site should be available at: http://YOUR_SERVER_IP:3001"
+
+  rollback:
+    needs: deploy
+    runs-on: ubuntu-latest
+    if: failure()
+
+    steps:
+      - name: Rollback to previous version
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: 22
+          script: |
+            # Поиск последнего бэкапа
+            BACKUP_DIR=$(ls -t /var/www/workdocs.backup.* | head -1)
+
+            if [ -n "$BACKUP_DIR" ]; then
+              echo "Rolling back to: $BACKUP_DIR"
+              
+              # Остановка текущего приложения
+              pm2 stop workdocs-app || true
+              
+              # Восстановление из бэкапа
+              rm -rf /var/www/workdocs/*
+              cp -r $BACKUP_DIR/* /var/www/workdocs/
+              
+              # Создание папки для логов
+              mkdir -p /var/www/workdocs/logs
+              chmod 755 /var/www/workdocs/logs
+              
+              # Запуск приложения
+              cd /var/www/workdocs/
+              pm2 start ecosystem.config.cjs
+              
+              echo "Rollback completed"
+            else
+              echo "No backup found for rollback"
+            fi

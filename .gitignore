@@ -28,3 +28,4 @@ coverage
 *.sw?
 
 *.tsbuildinfo
+/BDBACK 17.10.2025.zip
