@@ -18,6 +18,9 @@ module.exports = {
       env_production: {
         NODE_ENV: 'production',
         PORT: 3001,
+        // ВАЖНО: держим uploads вне рабочей папки релиза, чтобы CI/CD не стирал файлы
+        // Укажите актуальный путь на сервере (создайте заранее с нужными правами)
+        UPLOADS_DIR: '/var/www/workdocs_uploads',
       },
     },
   ],

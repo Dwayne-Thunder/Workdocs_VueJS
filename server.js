@@ -177,8 +177,11 @@ ensureDatabaseSchema().catch((err) => {
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 
-const uploadDir = path.resolve('uploads')
-if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir)
+// Путь к папке загрузок можно переопределить через переменную окружения UPLOADS_DIR
+const uploadDir = process.env.UPLOADS_DIR
+  ? path.resolve(process.env.UPLOADS_DIR)
+  : path.resolve('uploads')
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true })
 
 // Настройка multer для загрузки файлов с orderNum
 const storageWithOrderNum = multer.diskStorage({
@@ -643,8 +646,8 @@ app.post('/api/docs/:OrderNum/download-all', async (req, res) => {
       for (const filePath of files) {
         console.log(`[DOWNLOAD-ALL] Обрабатываем файл: ${filePath}`)
 
-        // Используем оригинальный путь к файлу (файлы сохранены с неправильной кодировкой)
-        const fullPath = path.join(__dirname, filePath)
+        // Собираем путь к файлу относительно каталога загрузок
+        const fullPath = path.join(uploadDir, filePath.replace('/uploads/', ''))
 
         // Для архива будем исправлять только имя файла
         let correctedFilePath = filePath
