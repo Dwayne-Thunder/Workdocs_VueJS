@@ -183,6 +183,8 @@ const uploadDir = process.env.UPLOADS_DIR
   : path.resolve('uploads')
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true })
 
+console.log('[UPLOADS] Каталог загрузок:', uploadDir)
+
 // Настройка multer для загрузки файлов с orderNum
 const storageWithOrderNum = multer.diskStorage({
   destination: (req, file, cb) => {

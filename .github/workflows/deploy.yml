@@ -111,8 +111,8 @@ jobs:
             mkdir -p /var/www/workdocs/logs
             chmod 755 /var/www/workdocs/logs
 
-            # Запуск приложения
-            pm2 start ecosystem.config.cjs
+            # Запуск приложения в production-окружении (env_production)
+            pm2 start ecosystem.config.cjs --env production
 
             # Ждем запуска
             sleep 10
@@ -120,10 +120,10 @@ jobs:
             # Проверка статуса
             pm2 status
 
-            # Если приложение не запустилось, перезапустить
+            # Если приложение не запустилось, перезапустить в production-окружении
             if ! pm2 status | grep -q "online"; then
               echo "Application not running, restarting..."
-              pm2 restart workdocs-app
+              pm2 restart workdocs-app --env production
               sleep 5
               pm2 status
             fi
