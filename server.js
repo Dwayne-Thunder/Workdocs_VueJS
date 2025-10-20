@@ -1059,7 +1059,20 @@ if (process.env.NODE_ENV === 'production') {
   // Раздача статических файлов (JS/CSS/ico и др.)
   app.use(express.static(distPath))
   // Раздача файлов из папки public (иконки, манифест)
-  app.use(express.static(publicPath))
+  app.use(
+    express.static(publicPath, {
+      maxAge: '1d', // Кеширование на 1 день
+      etag: true,
+    }),
+  )
+
+  // Специальная обработка favicon для избежания кеширования
+  app.get('/favicon.ico', (req, res) => {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate')
+    res.setHeader('Pragma', 'no-cache')
+    res.setHeader('Expires', '0')
+    res.sendFile(path.join(process.cwd(), 'public', 'favicon.ico'))
+  })
 }
 
 // удалено: эндпоинт для создания тестовых данных
