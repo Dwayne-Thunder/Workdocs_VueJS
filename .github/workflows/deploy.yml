@@ -39,6 +39,7 @@ jobs:
             package-lock.json
             ecosystem.config.cjs
             uploads/
+            public/
 
   deploy:
     needs: build-and-test
@@ -81,7 +82,7 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: 22
-          source: 'dist/,server.js,package.json,package-lock.json,ecosystem.config.cjs,uploads/'
+          source: 'dist/,server.js,package.json,package-lock.json,ecosystem.config.cjs,uploads/,public/'
           target: '/var/www/workdocs/'
 
       - name: Setup and start application

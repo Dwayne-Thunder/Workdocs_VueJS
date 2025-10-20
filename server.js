@@ -1055,8 +1055,11 @@ app.get('/api/ping', (req, res) => {
 // Обработка статики для продакшн
 if (process.env.NODE_ENV === 'production') {
   const distPath = path.join(process.cwd(), 'dist')
+  const publicPath = path.join(process.cwd(), 'public')
   // Раздача статических файлов (JS/CSS/ico и др.)
   app.use(express.static(distPath))
+  // Раздача файлов из папки public (иконки, манифест)
+  app.use(express.static(publicPath))
 }
 
 // удалено: эндпоинт для создания тестовых данных
