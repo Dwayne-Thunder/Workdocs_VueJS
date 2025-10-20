@@ -212,24 +212,120 @@ const storageWithOrderNum = multer.diskStorage({
 
 // Фильтр для проверки загружаемых файлов
 const fileFilter = (req, file, cb) => {
-  // Разрешенные типы файлов
+  // Разрешенные типы файлов (по mimetype)
   const allowedTypes = [
+    // Изображения
     'image/jpeg',
+    'image/jpg',
     'image/png',
     'image/gif',
+    'image/webp',
+    'image/svg+xml',
+    'image/heic',
+    'image/heif',
+    'image/bmp',
+    'image/tiff',
+    // Документы
     'application/pdf',
     'text/plain',
+    'text/csv',
+    'application/json',
+    'application/xml',
     'application/msword',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     'application/vnd.ms-excel',
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/vnd.ms-powerpoint',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'application/rtf',
+    'application/vnd.oasis.opendocument.text',
+    'application/vnd.oasis.opendocument.spreadsheet',
+    'application/vnd.oasis.opendocument.presentation',
+    // Архивы
+    'application/zip',
+    'application/x-zip-compressed',
+    'application/x-rar-compressed',
+    'application/vnd.rar',
+    'application/x-7z-compressed',
+    'application/x-tar',
+    'application/gzip',
+    'application/x-bzip2',
+    'application/x-xz',
+    // Аудио/видео (небольшие вложения)
+    'audio/mpeg',
+    'audio/mp3',
+    'audio/wav',
+    'audio/ogg',
+    'audio/aac',
+    'audio/flac',
+    'audio/webm',
+    'video/mp4',
+    'video/quicktime',
+    'video/x-msvideo',
+    'video/x-matroska',
+    'video/webm',
   ]
 
-  // Проверяем тип файла
-  if (allowedTypes.includes(file.mimetype)) {
+  // Резервная проверка по расширению (на случай некорректного mimetype)
+  const allowedExtensions = new Set([
+    // Изображения
+    '.jpg',
+    '.jpeg',
+    '.png',
+    '.gif',
+    '.webp',
+    '.svg',
+    '.heic',
+    '.heif',
+    '.bmp',
+    '.tif',
+    '.tiff',
+    // Документы
+    '.pdf',
+    '.txt',
+    '.md',
+    '.csv',
+    '.json',
+    '.xml',
+    '.rtf',
+    '.doc',
+    '.docx',
+    '.xls',
+    '.xlsx',
+    '.odt',
+    '.ods',
+    '.odp',
+    '.ppt',
+    '.pptx',
+    // Архивы
+    '.zip',
+    '.rar',
+    '.7z',
+    '.tar',
+    '.gz',
+    '.bz2',
+    '.xz',
+    // Аудио/видео
+    '.mp3',
+    '.wav',
+    '.ogg',
+    '.aac',
+    '.flac',
+    '.webm',
+    '.mp4',
+    '.mov',
+    '.avi',
+    '.mkv',
+  ])
+
+  const ext = path.extname((file.originalname || '').toLowerCase())
+
+  if (allowedTypes.includes(file.mimetype) || allowedExtensions.has(ext)) {
     cb(null, true)
   } else {
-    console.log(`[SECURITY] Заблокирован файл с подозрительным типом: ${file.mimetype}`)
+    console.log(
+      `[SECURITY] Заблокирован файл: mimetype=${file.mimetype}, name=${file.originalname}`,
+    )
     cb(new Error('Тип файла не разрешен'), false)
   }
 }
