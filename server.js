@@ -351,7 +351,7 @@ const uploadWithOrderNum = multer({
   storage: storageWithOrderNum,
   fileFilter: fileFilter,
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB максимум
+    fileSize: 30 * 1024 * 1024, // 30MB максимум
     files: 10, // максимум 10 файлов за раз
   },
 })
@@ -359,7 +359,7 @@ const uploadWithoutOrderNum = multer({
   storage: storageWithoutOrderNum,
   fileFilter: fileFilter,
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB максимум
+    fileSize: 30 * 1024 * 1024, // 30MB максимум
     files: 10, // максимум 10 файлов за раз
   },
 })
